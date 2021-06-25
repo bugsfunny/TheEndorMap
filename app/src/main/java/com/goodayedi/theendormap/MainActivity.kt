@@ -2,39 +2,55 @@ package com.goodayedi.theendormap
 
 import android.Manifest
 import android.content.pm.PackageManager
-import android.location.Location
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import androidx.activity.result.IntentSenderRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.FusedLocationProviderClient
-import com.google.android.gms.location.LocationServices
+import com.google.android.gms.common.api.ResolvableApiException
 import timber.log.Timber
+import java.lang.Exception
 
-private const val REQUEST_LOCATION_PERMISSION_LAST_LOCATION = 1
+private const val REQUEST_LOCATION_PERMISSION_START_UPDATE = 1
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var fusedLocationClient: FusedLocationProviderClient
+    private lateinit var locationLiveData: LocationLiveData
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
-        updateLocation()
+
+        locationLiveData = LocationLiveData(this)
+        locationLiveData.observe(this){
+            handleLocationData(it!!)
+        }
+
+
     }
 
-    private fun updateLocation() {
-        if (!checkLocationPermission()) {
+    private fun handleLocationData(locationData: LocationData) {
+        if (handleLocationException(locationData.exception)){
             return
         }
-        fusedLocationClient.lastLocation
-            .addOnSuccessListener { location : Location? ->
-                Timber.i("$location")
-            }
+        Timber.i("Last location from liveData ${locationData.location}")
     }
 
-    private fun checkLocationPermission(): Boolean {
+    private fun handleLocationException(exception: Exception?): Boolean {
+        exception ?: return false
+        when(exception){
+            is SecurityException -> checkLocationPermission(
+                REQUEST_LOCATION_PERMISSION_START_UPDATE)
+            is ResolvableApiException -> registerForActivityResult(ActivityResultContracts.StartIntentSenderForResult()) {
+                locationLiveData.createLocationRequest()
+            }.launch(IntentSenderRequest.Builder(exception.resolution).build())
+        }
+        return true
+    }
+
+
+    private fun checkLocationPermission(requestCode: Int): Boolean {
         if (ContextCompat.checkSelfPermission(
                 this,
                 Manifest.permission.ACCESS_FINE_LOCATION
@@ -43,7 +59,7 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.requestPermissions(
                 this,
                 arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                REQUEST_LOCATION_PERMISSION_LAST_LOCATION
+                requestCode
             )
             return false
         }
@@ -55,11 +71,12 @@ class MainActivity : AppCompatActivity() {
         permissions: Array<out String>,
         grantResults: IntArray
     ) {
-        if(grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED){
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (grantResults.isEmpty() || grantResults[0] != PackageManager.PERMISSION_GRANTED) {
             return
         }
-        when(requestCode){
-            REQUEST_LOCATION_PERMISSION_LAST_LOCATION -> updateLocation()
+        when (requestCode) {
+            REQUEST_LOCATION_PERMISSION_START_UPDATE -> locationLiveData.createLocationRequest()
         }
     }
 }
