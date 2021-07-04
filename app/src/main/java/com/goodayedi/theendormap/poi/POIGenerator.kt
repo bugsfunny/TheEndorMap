@@ -1,6 +1,7 @@
-package com.goodayedi.theendormap
+package com.goodayedi.theendormap.poi
 
 import android.graphics.Color
+import com.goodayedi.theendormap.R
 
 const val FRODO_BAGGINS = "Frodo Baggins"
 const val GREY_HAVENS = "Grey Havens"

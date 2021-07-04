@@ -1,8 +1,11 @@
-package com.goodayedi.theendormap
+package com.goodayedi.theendormap.map
 
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.goodayedi.theendormap.poi.POI
+import com.goodayedi.theendormap.poi.generatePOIList
+import com.goodayedi.theendormap.poi.generateUserPOI
 
 sealed class MapUIState {
     object Loading: MapUIState()

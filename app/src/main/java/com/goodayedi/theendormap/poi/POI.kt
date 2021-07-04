@@ -1,4 +1,4 @@
-package com.goodayedi.theendormap
+package com.goodayedi.theendormap.poi
 
 /**
  * iconId and iconColor are mutually exclusive.

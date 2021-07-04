@@ -1,17 +1,10 @@
-package com.goodayedi.theendormap
+package com.goodayedi.theendormap.location
 
 import android.content.Context
-import android.location.Location
 import androidx.lifecycle.LiveData
 import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.*
 import timber.log.Timber
-import java.lang.Exception
-
-data class LocationData(
-    val location: Location? = null,
-    val exception: Exception? = null
-)
 
 class LocationLiveData(context: Context): LiveData<LocationData>() {
     private val appContext = context.applicationContext
