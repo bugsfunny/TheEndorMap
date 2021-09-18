@@ -1,10 +1,14 @@
 package com.goodayedi.theendormap.map
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.net.Uri
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -62,11 +66,11 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
 
     private fun updateUIState(state: MapUIState) {
         when(state){
+            MapUIState.Loading -> loadingProgressBar.show()
             is MapUIState.Error -> {
                 loadingProgressBar.hide()
                 Toast.makeText(this, "Error: ${state.message}", Toast.LENGTH_SHORT).show()
             }
-            MapUIState.Loading -> loadingProgressBar.show()
             is MapUIState.POIReady -> {
                 loadingProgressBar.hide()
                 state.userPOI?.let { POI ->
@@ -86,11 +90,14 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
             return
         }
         locationData.location?.let {
+            val latLng = LatLng(it.latitude, it.longitude)
             if(firstLocation && ::map.isInitialized){
-                val latLng = LatLng(it.latitude, it.longitude)
                 map.moveCamera(CameraUpdateFactory.newLatLngZoom(latLng, 9f))
                 firstLocation = false
                 mapViewModel.loadPOIList(latitude = it.latitude, longitude = it.longitude)
+            }
+            if(::userMarker.isInitialized){
+                userMarker.position = latLng
             }
         }
     }
@@ -138,9 +145,39 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
         }
     }
 
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.activity_map_menu, menu)
+        return true
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when(item.itemId) {
+            R.id.generate_pois -> {
+                refreshPoisFromCurrentLocation()
+                true
+            }
+            else -> super.onOptionsItemSelected(item)
+        }
+    }
+
+    private fun refreshPoisFromCurrentLocation() {
+        map.clear()
+        mapViewModel.loadPOIList(userMarker.position.latitude, userMarker.position.longitude)
+    }
+
     override fun onMapReady(googleMap: GoogleMap) {
         map = googleMap
         map.setMapStyle(MapStyleOptions.loadRawResourceStyle(this, R.raw.maps_style))
+        map.setInfoWindowAdapter(EndorInfoWindowAdapter(this))
+        map.setOnInfoWindowClickListener { showPoiDetails(it.tag as POI) }
+    }
+
+    private fun showPoiDetails(poi: POI) {
+        if (poi.detailUrl.isEmpty()){
+            return
+        }
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse(poi.detailUrl))
+        startActivity(intent)
     }
 
     private fun addPOItoMapMarker(POI: POI, map: GoogleMap): Marker {
@@ -159,7 +196,7 @@ class MapActivity : AppCompatActivity(), OnMapReadyCallback {
                 Color.RED -> BitmapDescriptorFactory.HUE_RED
                 else -> BitmapDescriptorFactory.HUE_RED
             }
-            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(hue    ))
+            markerOptions.icon(BitmapDescriptorFactory.defaultMarker(hue))
         }
         val marker = map.addMarker(markerOptions)!!
         marker.tag = POI
